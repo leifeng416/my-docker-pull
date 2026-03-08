@@ -1,25 +1,37 @@
 name: Docker Image Downloader
 
 on:
-  workflow_dispatch: # 允许你手动点击运行
+  workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: Pull and Save Docker Image
+      - name: Check Space
+        run: df -h # 检查磁盘空间，防止空间不足
+
+      - name: Pull OpenClaw Image
         run: |
-          # 1. 拉取官方 OpenClaw 镜像
+          # 尝试拉取官方镜像，如果拉不动会报错
           docker pull openclaw/openclaw:latest
           
-          # 2. 拉取 Redis 镜像 (OpenClaw 运行必须的基础镜像)
+      - name: Pull Redis Image
+        run: |
           docker pull redis:alpine
           
-          # 3. 将两个镜像打包成一个 tar 文件
-          docker save openclaw/openclaw:latest redis:alpine -o openclaw_images.tar
+      - name: Prepare Local Tag
+        run: |
+          # 直接在云端就把名字改好，省去你以后在 Ubuntu 上的操作
+          docker tag openclaw/openclaw:latest openclaw:local
           
-      - name: Upload Image to GitHub
+      - name: Save Images to Tar
+        run: |
+          # 将改名后的镜像打包
+          docker save openclaw:local redis:alpine -o openclaw_images.tar
+          
+      - name: Upload Result
         uses: actions/upload-artifact@v4
         with:
-          name: openclaw-offline-package
+          name: openclaw-package
           path: openclaw_images.tar
+          retention-days: 1 # 文件保留1天
